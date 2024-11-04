@@ -1,14 +1,21 @@
-# Welcome to your CDK TypeScript project
+# Client Engagement Management App
 
-This is a blank project for CDK development with TypeScript.
+An application to record client engagements on specific projects
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+## Client
 
-## Useful commands
+The `/client` directory contains the front end UI built in VueJS
 
-* `npm run build`   compile typescript to js
-* `npm run watch`   watch for changes and compile
-* `npm run test`    perform the jest unit tests
-* `npx cdk deploy`  deploy this stack to your default AWS account/region
-* `npx cdk diff`    compare deployed stack with current state
-* `npx cdk synth`   emits the synthesized CloudFormation template
+### Client Build
+
+To build the client run the following NPM command `npm run ...`
+
+This builds the VueJS single page application and deploys it to S3
+
+## Engagement Service
+
+The `/engagement-service` directory contains the application backend to record and analyse client project engagements.
+
+### Engagement Service Build
+
+To build the engagement service run the following NPM command `npm run ...`.
