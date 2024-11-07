@@ -178,7 +178,7 @@ export default {
         return;
       }
       const selectedDate = format(
-        new Date(this.projectStartDate),
+        new Date((this.projectStartDate || "").toString()),
         "dd/MM/yyyy",
       );
 
