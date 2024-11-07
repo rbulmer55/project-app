@@ -42,16 +42,19 @@
               <v-card>
                 <v-form @submit.prevent="submit" ref="addClientForm">
                   <v-text-field
+                    prepend-icon="mdi-pen"
                     v-model="clientName"
                     :rules="nameRules"
                     label="Name"
                   ></v-text-field>
                   <v-text-field
+                    prepend-icon="mdi-pen"
                     v-model="clientIndustry"
                     :rules="industryRules"
                     label="Industry"
                   ></v-text-field>
                   <v-text-field
+                    prepend-icon="mdi-pen"
                     v-model="clientSector"
                     :rules="sectorRules"
                     label="Sector"

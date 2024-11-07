@@ -50,7 +50,7 @@
           </v-col>
           <v-row>
             <v-col v-if="clientSelected" cols="12">
-              <v-data-table :items="items"></v-data-table>
+              <v-data-table :items="projects"></v-data-table>
             </v-col>
           </v-row>
         </v-sheet>
@@ -151,7 +151,7 @@ export default {
         Sector: "Wholesale and Manufacturing",
       },
     ],
-    items: [
+    projects: [
       {
         id: "1",
         clientId: "1",
@@ -182,7 +182,7 @@ export default {
         "dd/MM/yyyy",
       );
 
-      this.items.push({
+      this.projects.push({
         id: `${id}`,
         clientId: "1",
         projectName: this.projectName,

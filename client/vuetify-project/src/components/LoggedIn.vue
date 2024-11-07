@@ -15,6 +15,8 @@
             v-for="(item, i) in items"
             :key="i"
             :value="item"
+            link
+            @click="$router.push(item.route)"
             color="primary"
           >
             <template v-slot:prepend>
@@ -34,11 +36,11 @@
 export default {
   data: () => ({
     items: [
-      { text: "Engagements", icon: "mdi-clock" },
-      { text: "Clients", icon: "mdi-account" },
-      { text: "Projects", icon: "mdi-flag" },
-      { text: "Summaries", icon: "mdi-book-multiple" },
-      { text: "Profile", icon: "mdi-cog" },
+      { text: "Engagements", icon: "mdi-clock", route: "/engagements" },
+      { text: "Clients", icon: "mdi-account", route: "/clients" },
+      { text: "Projects", icon: "mdi-flag", route: "/projects" },
+      { text: "Summaries", icon: "mdi-book-multiple", route: "/summaries" },
+      { text: "Profile", icon: "mdi-cog", route: "/profile" },
     ],
   }),
 };

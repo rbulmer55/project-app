@@ -2,7 +2,7 @@
 <!-- eslint-disable vue/script-indent -->
 <style>
 .v-toolbar__prepend {
-  display: contents;
+  display: contents !important;
 }
 </style>
 
@@ -20,12 +20,14 @@
       <v-app-bar-title class="text-no-wrap">{{ title }}</v-app-bar-title>
     </template>
     <template #append>
+      <v-btn link @click="$router.push('/')">
+        <v-icon icon="mdi-home" />
+      </v-btn>
       <v-btn append-icon="mdi-menu">
         Menu
 
         <v-menu activator="parent">
           <v-list>
-            <v-list-item link @click="$router.push('/')" title="home" />
             <v-list-item
               v-if="!userStore.loggedIn"
               link
