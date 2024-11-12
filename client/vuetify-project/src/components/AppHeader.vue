@@ -32,24 +32,28 @@
               v-if="!userStore.loggedIn"
               link
               @click="$router.push('/login')"
-              title="Login"
+              title="Login to use the app"
             />
             <v-list-item
+              v-if="userStore.loggedIn"
               link
               @click="$router.push('/clients')"
               title="Clients"
             />
             <v-list-item
+              v-if="userStore.loggedIn"
               link
               @click="$router.push('/projects')"
               title="Projects"
             />
             <v-list-item
+              v-if="userStore.loggedIn"
               link
               @click="$router.push('/engagements')"
               title="Engagements"
             />
             <v-list-item
+              v-if="userStore.loggedIn"
               link
               @click="$router.push('/summaries')"
               title="Summaries"

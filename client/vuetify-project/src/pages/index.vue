@@ -23,8 +23,8 @@
 
 <script lang="ts" setup>
 import { useUserStore } from "../stores/user";
-const userStore = useUserStore();
-
 import LoginForm from "@/components/Login.vue";
 import LoggedIn from "@/components/LoggedIn.vue";
+
+const userStore = useUserStore();
 </script>

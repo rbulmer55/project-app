@@ -1,7 +1,7 @@
 import { getAccesstoken } from "@/services/login-service";
 import { useUserStore } from "@/stores/user";
 
-export function handleLoginResult(to: any, from: any, next: any) {
+export async function handleLoginResult(to: any, from: any, next: any) {
   const userStore = useUserStore();
 
   // store authorisation code from caller
@@ -10,13 +10,10 @@ export function handleLoginResult(to: any, from: any, next: any) {
   }
   const code = to.query.code?.toString() || "";
 
-  console.log(userStore.pkceVerifier);
   // call cognito to retieve users
-  getAccesstoken(code, userStore.pkceVerifier).then((res) => {
-    if (res) {
-      userStore.setCognitoInfo(res.data);
-    }
-  });
+  const res = await getAccesstoken(code, userStore.pkceVerifier);
+
+  userStore.setCognitoInfo(res.data);
 
   next("/");
 }

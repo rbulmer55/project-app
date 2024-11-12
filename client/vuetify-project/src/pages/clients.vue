@@ -16,7 +16,7 @@
               View and manage clients below
             </div>
           </div>
-          <v-data-table :items="items"></v-data-table>
+          <v-data-table :items="clients"></v-data-table>
         </v-sheet>
       </v-col>
     </v-row>
@@ -35,12 +35,21 @@
                 <div class="text-h5 font-weight-light mb-2">
                   Add a new client
                 </div>
+                <v-alert
+                  v-if="createClientResponse.result"
+                  max-width="50%"
+                  class="justify-center align-center text-center mx-auto"
+                  :color="createClientResponse.result"
+                  :icon="'$' + createClientResponse.result"
+                  :title="createClientResponse.result.toUpperCase()"
+                  :text="createClientResponse.message"
+                ></v-alert>
               </div>
             </v-col>
             <v-col cols="3"></v-col>
             <v-col cols="6" align-self="center">
               <v-card>
-                <v-form @submit.prevent="submit" ref="addClientForm">
+                <v-form @submit.prevent="submitClient" ref="addClientForm">
                   <v-text-field
                     prepend-icon="mdi-pen"
                     v-model="clientName"
@@ -81,22 +90,21 @@
 <script lang="ts" setup></script>
 
 <script lang="ts">
-let id = 2;
 import { VForm } from "vuetify/components";
+import { getClients, createClient, Client } from "../services/client-service";
+import router from "@/router";
+
 export default {
   data: () => ({
-    items: [
-      {
-        id: "1",
-        name: "CEF",
-        Industry: "Electrical Wholesale",
-        Sector: "Wholesale and Manufacturing",
-      },
-    ],
+    clients: [] as Client[],
     loading: false,
     clientName: "",
     clientIndustry: "",
     clientSector: "",
+    createClientResponse: {
+      message: "",
+      result: "",
+    },
     nameRules: [
       (value: any) => {
         if (value) return true;
@@ -117,18 +125,73 @@ export default {
     ],
   }),
   methods: {
-    async submit(event: any) {
-      this.loading = true;
-      this.items.push({
-        id: `${id}`,
-        name: this.clientName,
-        Industry: this.clientIndustry,
-        Sector: this.clientSector,
-      });
-      id++;
-      (this.$refs.addClientForm as typeof VForm).reset();
-      this.loading = false;
+    checkForDuplicateOnCreate(name: string) {
+      if (this.clients.some((client) => client.name === name)) return true;
+      return false;
     },
+    async submitClient(event: any) {
+      this.loading = true;
+      const { valid } = await (
+        this.$refs.addClientForm as typeof VForm
+      ).validate();
+      if (!valid) {
+        this.loading = false;
+        return;
+      }
+
+      if (
+        !this.createClientResponse.message &&
+        this.checkForDuplicateOnCreate(this.clientName)
+      ) {
+        this.createClientResponse = {
+          message:
+            "You are creating a client with a duplicate name. If you wish to continue, re-submit the form",
+          result: "info",
+        };
+        this.loading = false;
+        return;
+      }
+
+      try {
+        const response = await createClient({
+          name: this.clientName,
+          industry: this.clientIndustry,
+          sector: this.clientSector,
+        });
+        this.createClientResponse = { message: response, result: "success" };
+        (this.$refs.addClientForm as typeof VForm).reset();
+        this.clients = await getClients();
+      } catch (e: any) {
+        const error = JSON.parse(e.message);
+        this.handleError(error);
+      } finally {
+        this.loading = false;
+      }
+    },
+    handleError(error: any) {
+      if (error.status === 401) {
+        this.createClientResponse = {
+          message: error.message,
+          result: "error",
+        };
+        router.push("/logout");
+      }
+      this.createClientResponse = {
+        message: JSON.stringify(error.message),
+        result: "error",
+      };
+    },
+  },
+  async mounted() {
+    this.loading = true;
+    try {
+      this.clients = await getClients();
+    } catch (e: any) {
+      const error = JSON.parse(e.message);
+      this.handleError(error);
+    } finally {
+      this.loading = false;
+    }
   },
 };
 </script>

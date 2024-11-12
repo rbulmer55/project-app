@@ -31,6 +31,7 @@
                   :rules="[(v) => !!v || 'Client is required']"
                   label="Client"
                   required
+                  return-object
                 ></v-select>
                 <v-btn
                   class="mt-2"
@@ -71,6 +72,15 @@
                 <div class="text-h5 font-weight-light mb-2">
                   Add a new project
                 </div>
+                <v-alert
+                  v-if="createProjectResponse.result"
+                  max-width="50%"
+                  class="justify-center align-center text-center mx-auto"
+                  :color="createProjectResponse.result"
+                  :icon="'$' + createProjectResponse.result"
+                  :title="createProjectResponse.result.toUpperCase()"
+                  :text="createProjectResponse.message"
+                ></v-alert>
               </div>
             </v-col>
             <v-col cols="3"></v-col>
@@ -78,7 +88,7 @@
               <v-card>
                 <v-form
                   :disabled="!clientSelected"
-                  @submit.prevent="submit"
+                  @submit.prevent="submitProject"
                   ref="addProjectForm"
                 >
                   <v-text-field
@@ -135,45 +145,74 @@ onMounted(() => {
 </script>
 
 <script lang="ts">
-let id = 2;
-
 import { VForm } from "vuetify/components";
 import { format } from "date-fns";
+import { Client, getClients } from "../services/client-service";
+import {
+  Project,
+  getProjects,
+  createProject,
+  ProjectDataView,
+} from "../services/project-service";
+import router from "@/router";
+
 export default {
   data: () => ({
-    client: null,
+    client: null as unknown as Client,
     clientSelected: false,
-    clients: [
-      {
-        id: "1",
-        name: "CEF",
-        Industry: "Electrical Wholesale",
-        Sector: "Wholesale and Manufacturing",
-      },
-    ],
-    projects: [
-      {
-        id: "1",
-        clientId: "1",
-        projectName: "CEF e-catalog",
-        projectStartDate: "01/01/2001",
-      },
-    ],
+    clients: [] as Client[],
+    projects: [] as ProjectDataView[],
+    createProjectResponse: {
+      message: "",
+      result: "",
+    },
     loading: false,
     projectName: "",
     projectStartDate: null,
   }),
   methods: {
-    async submitSelectClient(event: any) {
-      this.clientSelected = true;
+    checkForDuplicateOnCreate(name: string) {
+      if (this.projects.some((project) => project.name === name)) return true;
+      return false;
     },
-    async submit(event: any) {
+    formatProjects(projects: Project[]) {
+      this.projects = projects.map(({ id = "", clientId, ...project }) => {
+        const clientName =
+          this.clients.find((client: Client) => client.id === clientId)?.name ||
+          "";
+        return {
+          id,
+          client: clientName,
+          ...project,
+        };
+      });
+    },
+    async submitSelectClient(event: any) {
+      this.loading = true;
+      const { valid } = await (
+        this.$refs.selectClientForm as typeof VForm
+      ).validate();
+      if (!valid) {
+        this.loading = false;
+        return;
+      }
+      try {
+        const projects = await getProjects(this.client.id || "");
+        this.formatProjects(projects);
+      } catch (e: any) {
+        const error = JSON.parse(e.message);
+        this.handleError(error);
+      } finally {
+        this.loading = false;
+        this.clientSelected = true;
+      }
+    },
+    async submitProject(event: any) {
       this.loading = true;
       const { valid } = await (
         this.$refs.addProjectForm as typeof VForm
       ).validate();
       if (!valid) {
-        alert("Form is invalid");
         this.loading = false;
         return;
       }
@@ -182,16 +221,66 @@ export default {
         "dd/MM/yyyy",
       );
 
-      this.projects.push({
-        id: `${id}`,
-        clientId: "1",
-        projectName: this.projectName,
-        projectStartDate: selectedDate,
-      });
-      id++;
-      (this.$refs.addProjectForm as typeof VForm).reset();
-      this.loading = false;
+      if (
+        !this.createProjectResponse.message &&
+        this.checkForDuplicateOnCreate(this.projectName)
+      ) {
+        this.createProjectResponse = {
+          message:
+            "You are creating a project with a duplicate name. If you wish to continue, re-submit the form",
+          result: "info",
+        };
+        this.loading = false;
+        return;
+      }
+
+      if (!this.client.id) throw Error("Client not selected.");
+
+      try {
+        const response = await createProject({
+          clientId: this.client.id,
+          name: this.projectName,
+          startDate: selectedDate,
+        });
+
+        this.createProjectResponse = { message: response, result: "success" };
+
+        (this.$refs.addProjectForm as typeof VForm).reset();
+
+        const projects = await getProjects(this.client.id || "");
+        this.formatProjects(projects);
+
+        this.loading = false;
+      } catch (e: any) {
+        const error = JSON.parse(e.message);
+        this.handleError(error);
+      } finally {
+        this.loading = false;
+      }
     },
+    handleError(error: any) {
+      if (error.status === 401) {
+        this.createProjectResponse = {
+          message: error.message,
+          result: "error",
+        };
+        router.push("/logout");
+      }
+      this.createProjectResponse = {
+        message: JSON.stringify(error.message),
+        result: "error",
+      };
+    },
+  },
+  async mounted() {
+    try {
+      this.clients = await getClients();
+    } catch (e: any) {
+      const error = JSON.parse(e.message);
+      this.handleError(error);
+    } finally {
+      this.loading = false;
+    }
   },
 };
 </script>

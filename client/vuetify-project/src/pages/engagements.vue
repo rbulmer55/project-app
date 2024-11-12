@@ -20,10 +20,7 @@
           </v-col>
           <v-col cols="12" align-self="center">
             <v-card width="100%">
-              <v-form
-                @submit.prevent="submitSelectClient"
-                ref="selectClientForm"
-              >
+              <v-form>
                 <v-select
                   v-model="client"
                   item-title="name"
@@ -31,6 +28,8 @@
                   :rules="[(v) => !!v || 'Client is required']"
                   label="Client"
                   required
+                  return-object
+                  @update:model-value="clientChanged"
                 ></v-select>
                 <div>
                   <span style="color: gray" v-if="!client"
@@ -49,11 +48,12 @@
               >
                 <v-select
                   v-model="project"
-                  item-title="projectName"
+                  item-title="name"
                   :items="projects"
                   :rules="[(v) => !!v || 'Project is required']"
                   label="Project"
                   required
+                  return-object
                 ></v-select>
                 <v-btn
                   :disabled="!project"
@@ -95,6 +95,15 @@
                 <div class="text-h5 font-weight-light mb-2">
                   Add a new engagement
                 </div>
+                <v-alert
+                  v-if="createEngagementResponse.result"
+                  max-width="50%"
+                  class="justify-center align-center text-center mx-auto"
+                  :color="createEngagementResponse.result"
+                  :icon="'$' + createEngagementResponse.result"
+                  :title="createEngagementResponse.result.toUpperCase()"
+                  :text="createEngagementResponse.message"
+                ></v-alert>
               </div>
             </v-col>
             <v-col cols="3"></v-col>
@@ -102,7 +111,7 @@
               <v-card>
                 <v-form
                   :disabled="!projectSelected"
-                  @submit.prevent="submit"
+                  @submit.prevent="submitEngagement"
                   ref="addEngagementForm"
                 >
                   <v-text-field
@@ -122,7 +131,7 @@
                     label="Engagement Date"
                     variant="outlined"
                     persistent-placeholder
-                    v-model="date"
+                    v-model="engagementDate"
                     :rules="[(v) => !!v || 'Engagement date is required']"
                   ></v-date-input>
 
@@ -166,56 +175,101 @@ onMounted(() => {
 </script>
 
 <script lang="ts">
-let id = 2;
-
 import { VForm } from "vuetify/components";
 import { format } from "date-fns";
+import { Client, getClients } from "../services/client-service";
+import { Project, getProjects } from "../services/project-service";
+import {
+  Engagement,
+  getEngagements,
+  createEngagement,
+  EngagementDataView,
+} from "../services/engagement-service";
+import router from "@/router";
+
 export default {
   data: () => ({
-    client: null,
-    project: null,
+    client: null as unknown as Client,
+    project: null as unknown as Project,
     clientSelected: false,
     projectSelected: false,
-    clients: [
-      {
-        id: "1",
-        name: "CEF",
-        Industry: "Electrical Wholesale",
-        Sector: "Wholesale and Manufacturing",
-      },
-    ],
-    projects: [
-      {
-        id: "1",
-        clientId: "1",
-        projectName: "CEF e-catalog",
-        projectStartDate: "01/01/2001",
-      },
-    ],
-    engagements: [
-      {
-        id: "1",
-        clientId: "1",
-        projectId: "1",
-        date: "01/01/2001",
-        description: "Advised on query optimisation",
-        value:
-          "Helped the customer to save time retireving data for their user",
-      },
-    ],
+    clients: [] as Client[],
+    projects: [] as Project[],
+    engagements: [] as EngagementDataView[],
+    createEngagementResponse: {
+      message: "",
+      result: "",
+    },
     loading: false,
-    date: null,
+    engagementDate: null,
     description: "",
     value: "",
   }),
   methods: {
-    async submitSelectClient(event: any) {
-      this.clientSelected = true;
+    formatEngagements(engagements: Engagement[]) {
+      this.engagements = engagements.map(
+        ({ id = "", clientId, projectId, ...engagement }) => {
+          const clientName =
+            this.clients.find((client: Client) => client.id === clientId)
+              ?.name || "";
+          const projectName =
+            this.projects.find((project: Project) => project.id === projectId)
+              ?.name || "";
+          return {
+            id,
+            client: clientName,
+            project: projectName,
+            ...engagement,
+          };
+        },
+      );
+    },
+    async clientChanged(event: any) {
+      this.loading = true;
+
+      // without log, event runs too quick
+      console.log(this.client);
+
+      if (!this.client) {
+        this.loading = false;
+        return;
+      }
+      try {
+        this.projects = await getProjects(this.client.id || "");
+      } catch (e: any) {
+        const error = JSON.parse(e.message);
+        this.handleError(error);
+      } finally {
+        this.loading = false;
+        this.clientSelected = true;
+      }
     },
     async submitSelectProject(event: any) {
-      this.projectSelected = true;
+      this.loading = true;
+
+      const { valid } = await (
+        this.$refs.selectProjectForm as typeof VForm
+      ).validate();
+
+      if (!valid) {
+        this.loading = false;
+        return;
+      }
+      try {
+        const engagements = await getEngagements(
+          this.client.id || "",
+          this.project.id || "",
+        );
+        this.formatEngagements(engagements);
+      } catch (e: any) {
+        const error = JSON.parse(e.message);
+        this.handleError(error);
+      } finally {
+        this.loading = false;
+        this.projectSelected = true;
+      }
     },
-    async submit(event: any) {
+    async submitEngagement(event: any) {
       this.loading = true;
       const { valid } = await (
         this.$refs.addEngagementForm as typeof VForm
@@ -226,22 +280,63 @@ export default {
         return;
       }
       const selectedDate = format(
-        new Date((this.date || "").toString()),
+        new Date((this.engagementDate || "").toString()),
         "dd/MM/yyyy",
       );
 
-      this.engagements.push({
-        id: `${id}`,
-        projectId: "1",
-        clientId: "1",
-        description: this.description,
-        value: this.value,
-        date: selectedDate,
-      });
-      id++;
+      if (!this.client.id) throw Error("Client not selected.");
+      if (!this.project.id) throw Error("Project not selected.");
+      try {
+        const response = await createEngagement({
+          clientId: this.client.id,
+          projectId: this.project.id,
+          description: this.description,
+          value: this.value,
+          engagementDate: selectedDate,
+        });
+        this.createEngagementResponse = {
+          message: response,
+          result: "success",
+        };
+        (this.$refs.addEngagementForm as typeof VForm).reset();
+        const engagements = await getEngagements(
+          this.client.id || "",
+          this.project.id || "",
+        );
+        this.formatEngagements(engagements);
+        this.loading = false;
+      } catch (e: any) {
+        const error = JSON.parse(e.message);
+        this.handleError(error);
+      } finally {
+        this.loading = false;
+      }
       (this.$refs.addEngagementForm as typeof VForm).reset();
       this.loading = false;
     },
+    handleError(error: any) {
+      if (error.status === 401) {
+        this.createEngagementResponse = {
+          message: error.message,
+          result: "error",
+        };
+        router.push("/logout");
+      }
+      this.createEngagementResponse = {
+        message: JSON.stringify(error.message),
+        result: "error",
+      };
+    },
+  },
+  async mounted() {
+    try {
+      this.clients = await getClients();
+    } catch (e: any) {
+      const error = JSON.parse(e.message);
+      this.handleError(error);
+    } finally {
+      this.loading = false;
+    }
   },
 };
 </script>

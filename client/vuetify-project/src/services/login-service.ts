@@ -12,7 +12,7 @@ type PKCEResponse = {
 };
 
 export async function generatePKCETokens(): Promise<PKCEResponse> {
-  return pkceChallenge();
+  return await pkceChallenge();
 }
 
 export function getAuthorizationCode(pkceChallenge: string) {

@@ -6,6 +6,20 @@ import {
 	UserPoolDomain,
 } from 'aws-cdk-lib/aws-cognito';
 import { config } from './config/config';
+import { Bucket, BucketAccessControl } from 'aws-cdk-lib/aws-s3';
+import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
+import { resolve } from 'path';
+import {
+	Distribution,
+	OriginAccessIdentity,
+	PriceClass,
+} from 'aws-cdk-lib/aws-cloudfront';
+import { S3Origin } from 'aws-cdk-lib/aws-cloudfront-origins';
+import {
+	Certificate,
+	CertificateValidation,
+} from 'aws-cdk-lib/aws-certificatemanager';
+import { HostedZone } from 'aws-cdk-lib/aws-route53';
 
 export class ClientStack extends cdk.Stack {
 	public readonly userPoolId: string;
@@ -49,7 +63,70 @@ export class ClientStack extends cdk.Stack {
 				callbackUrls: [`${config.appUrl}/login/oauth2/code/cognito/`],
 				logoutUrls: [`${config.appUrl}/`],
 			},
+			idTokenValidity: cdk.Duration.hours(8),
+			accessTokenValidity: cdk.Duration.hours(8),
 		});
 		this.clientId = appClient.userPoolClientId;
+
+		/**
+		 * Create our website bucket
+		 */
+		const websiteBucket = new Bucket(this, 'WebsiteBucket', {
+			accessControl: BucketAccessControl.PRIVATE,
+		});
+		/**
+		 * Deploy VUE SPA to the bucket
+		 */
+		new BucketDeployment(this, 'BucketDeployment', {
+			destinationBucket: websiteBucket,
+			sources: [Source.asset(resolve(__dirname, '../vuetify-project/dist'))],
+		});
+		/**
+		 * Create a cloudfront distrubtion
+		 */
+		const originAccessIdentity = new OriginAccessIdentity(
+			this,
+			'OriginAccessIdentity',
+			{}
+		);
+		websiteBucket.grantRead(originAccessIdentity);
+
+		if (config.stage !== 'prod') {
+			new Distribution(this, 'Distribution', {
+				defaultRootObject: 'index.html',
+				defaultBehavior: {
+					origin: new S3Origin(websiteBucket, { originAccessIdentity }),
+				},
+				priceClass: PriceClass.PRICE_CLASS_100,
+			});
+		} else {
+			// Retrieve the hosted zone
+			const hostedZone = HostedZone.fromHostedZoneAttributes(
+				this,
+				'hostedZone',
+				{
+					hostedZoneId: config.hostedZoneId,
+					zoneName: config.domain,
+				}
+			);
+
+			/**
+			 * Create SSL certificate
+			 */
+			const cert = new Certificate(this, 'Certificate', {
+				domainName: `engagements.${config.domain}`,
+				validation: CertificateValidation.fromDns(hostedZone),
+			});
+
+			new Distribution(this, 'Distribution', {
+				domainNames: [config.domain],
+				defaultRootObject: 'index.html',
+				defaultBehavior: {
+					origin: new S3Origin(websiteBucket, { originAccessIdentity }),
+				},
+				priceClass: PriceClass.PRICE_CLASS_100,
+				certificate: cert,
+			});
+		}
 	}
 }

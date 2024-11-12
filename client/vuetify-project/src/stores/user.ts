@@ -6,12 +6,16 @@ type CognitoInfo = {
   access_token: string;
   expires_in: number;
   token_type: string;
+  id_token: string;
+  refresh_token: string;
 };
 
-const EmptyCognitoObject = {
+const EmptyCognitoObject: CognitoInfo = {
   access_token: "",
   expires_in: 0,
   token_type: "",
+  id_token: "",
+  refresh_token: "",
 };
 
 export const useUserStore = defineStore(
@@ -69,6 +73,8 @@ export const useUserStore = defineStore(
       access_token,
       token_type,
       expires_in,
+      id_token,
+      refresh_token,
     }: CognitoInfo): void {
       //set logged in
       loggedIn.value = true;
@@ -76,6 +82,8 @@ export const useUserStore = defineStore(
       cognitoInfo.value.access_token = access_token;
       cognitoInfo.value.expires_in = expires_in;
       cognitoInfo.value.token_type = token_type;
+      cognitoInfo.value.id_token = id_token;
+      cognitoInfo.value.refresh_token = refresh_token;
       //clear pcke values
       clearPKCETokens();
     }

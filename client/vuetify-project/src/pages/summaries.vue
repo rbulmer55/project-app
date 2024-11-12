@@ -20,10 +20,7 @@
           </v-col>
           <v-col cols="12" align-self="center">
             <v-card width="100%">
-              <v-form
-                @submit.prevent="submitSelectClient"
-                ref="selectClientForm"
-              >
+              <v-form>
                 <v-select
                   v-model="client"
                   item-title="name"
@@ -31,7 +28,9 @@
                   :rules="[(v) => !!v || 'Client is required']"
                   label="Client"
                   required
-                ></v-select>
+                  return-object
+                  @update:model-value="clientChanged"
+                />
                 <div>
                   <span style="color: gray" v-if="!client"
                     >Please choose a client</span
@@ -49,11 +48,12 @@
               >
                 <v-select
                   v-model="project"
-                  item-title="projectName"
+                  item-title="name"
                   :items="projects"
                   :rules="[(v) => !!v || 'Project is required']"
                   label="Project"
                   required
+                  return-object
                 ></v-select>
                 <v-btn
                   :disabled="!project"
@@ -98,46 +98,107 @@ onMounted(() => {
 
 <script lang="ts">
 import { VForm } from "vuetify/components";
+import { Client, getClients } from "../services/client-service";
+import { Project, getProjects } from "../services/project-service";
+import {
+  Summary,
+  getSummaries,
+  SummaryDataView,
+} from "../services/summary-service";
+import router from "@/router";
+
 export default {
   data: () => ({
-    client: null,
-    project: null,
+    client: null as unknown as Client,
+    project: null as unknown as Project,
     clientSelected: false,
     projectSelected: false,
-    clients: [
-      {
-        id: "1",
-        name: "CEF",
-        Industry: "Electrical Wholesale",
-        Sector: "Wholesale and Manufacturing",
-      },
-    ],
-    projects: [
-      {
-        id: "1",
-        clientId: "1",
-        projectName: "CEF e-catalog",
-        projectStartDate: "01/01/2001",
-      },
-    ],
-    summaries: [
-      {
-        id: "1",
-        clientId: "1",
-        projectId: "1",
-        lastUpdated: "01/01/2001",
-        summary: "A well structured engagement summary goes here...",
-      },
-    ],
+    clients: [] as Client[],
+    projects: [] as Project[],
+    summaries: [] as SummaryDataView[],
     loading: false,
   }),
   methods: {
-    async submitSelectClient(event: any) {
-      this.clientSelected = true;
+    formatSummaries(summaries: Summary[]) {
+      this.summaries = summaries.map(
+        ({ id = "", clientId, projectId, ...summary }) => {
+          const clientName =
+            this.clients.find((client: Client) => client.id === clientId)
+              ?.name || "";
+          const projectName =
+            this.projects.find((project: Project) => project.id === projectId)
+              ?.name || "";
+          return {
+            id,
+            client: clientName,
+            project: projectName,
+            ...summary,
+          };
+        },
+      );
+    },
+    async clientChanged(event: any) {
+      this.loading = true;
+
+      // without log, event runs too quick
+      console.log(this.client);
+
+      if (!this.client) {
+        this.loading = false;
+        return;
+      }
+
+      try {
+        this.projects = await getProjects(this.client.id || "");
+      } catch (e: any) {
+        const error = JSON.parse(e.message);
+        this.handleError(error);
+      } finally {
+        this.loading = false;
+        this.clientSelected = true;
+      }
     },
     async submitSelectProject(event: any) {
-      this.projectSelected = true;
+      this.loading = true;
+
+      const { valid } = await (
+        this.$refs.selectProjectForm as typeof VForm
+      ).validate();
+
+      if (!valid) {
+        this.loading = false;
+        return;
+      }
+
+      try {
+        const summaries = await getSummaries(
+          this.client.id || "",
+          this.project.id || "",
+        );
+        this.formatSummaries(summaries);
+      } catch (e: any) {
+        const error = JSON.parse(e.message);
+        this.handleError(error);
+      } finally {
+        this.loading = false;
+        this.projectSelected = true;
+      }
     },
+    handleError(error: any) {
+      if (error.status === 401) {
+        router.push("/logout");
+      }
+    },
+  },
+  async mounted() {
+    try {
+      this.clients = await getClients();
+    } catch (e: any) {
+      const error = JSON.parse(e.message);
+      this.handleError(error);
+    } finally {
+      this.loading = false;
+    }
   },
 };
 </script>

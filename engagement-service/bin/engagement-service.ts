@@ -1,21 +1,37 @@
 #!/usr/bin/env node
+
 import 'source-map-support/register';
+
 import * as cdk from 'aws-cdk-lib';
-import { EngagementServiceStack } from '../lib/engagement-service-stack';
+
+import { EngagementServiceStatelessStack } from '../stateless/stateless';
+import { EngagementServiceStatefulStack } from '../stateful/stateful';
+import { Stage } from 'types';
+import { getEnvironmentConfig } from '../app-config';
+
+const { STAGE: stage = Stage.develop } = process.env;
+const appConfig = getEnvironmentConfig(stage as Stage);
 
 const app = new cdk.App();
-new EngagementServiceStack(app, 'EngagementServiceStack', {
-  /* If you don't specify 'env', this stack will be environment-agnostic.
-   * Account/Region-dependent features and context lookups will not work,
-   * but a single synthesized template can be deployed anywhere. */
-
-  /* Uncomment the next line to specialize this stack for the AWS Account
-   * and Region that are implied by the current CLI configuration. */
-  // env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
-
-  /* Uncomment the next line if you know exactly what Account and Region you
-   * want to deploy the stack to. */
-  // env: { account: '123456789012', region: 'us-east-1' },
-
-  /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
-});
+const stateful = new EngagementServiceStatefulStack(
+  app,
+  `${appConfig.shared.stage}-EngagementServiceStatefulStack`,
+  {
+    env: {
+      account: appConfig.env.account,
+      region: appConfig.env.region,
+    },
+  },
+);
+new EngagementServiceStatelessStack(
+  app,
+  `${appConfig.shared.stage}-EngagementServiceStatelessStack`,
+  {
+    engagementTable: stateful.engagementTable,
+    appConfig,
+    env: {
+      account: appConfig.env.account,
+      region: appConfig.env.region,
+    },
+  },
+);
