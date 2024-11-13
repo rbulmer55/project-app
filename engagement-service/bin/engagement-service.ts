@@ -28,6 +28,7 @@ new EngagementServiceStatelessStack(
   `${appConfig.shared.stage}-EngagementServiceStatelessStack`,
   {
     engagementTable: stateful.engagementTable,
+    engagementQueue: stateful.engagementQueue,
     appConfig,
     env: {
       account: appConfig.env.account,

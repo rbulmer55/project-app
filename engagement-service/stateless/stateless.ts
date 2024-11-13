@@ -26,18 +26,44 @@ import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
 import { Stage } from 'types';
 import { EnvironmentConfig } from 'app-config';
 import { UserPool } from 'aws-cdk-lib/aws-cognito';
+import { IQueue } from 'aws-cdk-lib/aws-sqs';
+import { NodejsFunction, SourceMapMode } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { Runtime } from 'aws-cdk-lib/aws-lambda';
+import { join } from 'path';
+import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 
 interface EngagementStackProps extends cdk.StackProps {
   engagementTable: ITableV2;
   appConfig: EnvironmentConfig;
+  engagementQueue: IQueue;
 }
 
 export class EngagementServiceStatelessStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: EngagementStackProps) {
+  constructor(scope: Construct, id: string, props: EngagementStackProps) {
     super(scope, id, props);
 
-    if (!props?.engagementTable || !props.appConfig)
+    if (!props.engagementTable || !props.engagementQueue || !props.appConfig)
       throw Error('Missing Stateless Stack Props');
+
+    const engagementStreamLambda = new NodejsFunction(
+      this,
+      'EngagementStreamLambda',
+      {
+        runtime: Runtime.NODEJS_20_X,
+        timeout: cdk.Duration.seconds(10),
+        entry: join(
+          __dirname,
+          './src/adapters/primary/sqs-queue-engagements-queue-processor/sqs-queue-engagements-queue-processor.adapter.ts',
+        ),
+        handler: 'handler',
+        bundling: {
+          minify: true,
+          sourceMap: true,
+          sourceMapMode: SourceMapMode.INLINE,
+        },
+        logRetention: RetentionDays.SIX_MONTHS,
+      },
+    );
 
     /**
      * Fetch our userPool where users tokens will be authenticated
@@ -79,9 +105,7 @@ export class EngagementServiceStatelessStack extends cdk.Stack {
      */
     const engagementApi = new RestApi(this, 'engagementServiceAPI', {
       defaultCorsPreflightOptions: {
-        allowOrigins: [
-          `${props.appConfig.shared.domainProtocol}://${props.appConfig.shared.domain}`,
-        ],
+        allowOrigins: props.appConfig.shared.allowedOrigins,
         allowHeaders: Cors.DEFAULT_HEADERS,
         allowMethods: Cors.ALL_METHODS,
         allowCredentials: true,

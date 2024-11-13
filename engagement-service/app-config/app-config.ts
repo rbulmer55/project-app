@@ -10,7 +10,7 @@ export interface EnvironmentConfig {
       logEvent: 'true' | 'false';
     };
     domain: string;
-    domainProtocol: string;
+    allowedOrigins: string[];
   };
   env: {
     account: string;
@@ -27,10 +27,15 @@ export const getEnvironmentConfig = (stage: Stage): EnvironmentConfig => {
     HOSTED_ZONE: hostedZoneId,
     USER_POOL: userPoolId,
     AWS_ACCOUNT: account,
+    ADDITIONAL_ORIGIN: additionalOrigin,
+    DOMAIN: domain,
   } = process.env;
   if (!hostedZoneId) throw Error('Missing environment variable: HostedZone');
   if (!userPoolId) throw Error('Missing environment variable: UserPool');
   if (!account) throw Error('Missing environment variable: Account');
+  if (!domain) throw Error('Missing environment variable: Domain');
+  if (!additionalOrigin)
+    throw Error('Missing environment variable: Additional Origin');
 
   switch (stage) {
     case Stage.prod:
@@ -42,8 +47,8 @@ export const getEnvironmentConfig = (stage: Stage): EnvironmentConfig => {
           },
           serviceName: `engagement-service-${Stage.prod}`,
           metricNamespace: `engagement-service-ns-${Stage.prod}`,
-          domain: 'architechinsights.com',
-          domainProtocol: 'https',
+          domain,
+          allowedOrigins: [additionalOrigin],
           stage: Stage.prod,
         },
         stateless: {},
@@ -64,8 +69,8 @@ export const getEnvironmentConfig = (stage: Stage): EnvironmentConfig => {
           },
           serviceName: `engagement-service-${Stage.develop}`,
           metricNamespace: `engagement-service-ns-${Stage.develop}`,
-          domain: 'localhost:3000',
-          domainProtocol: 'http',
+          domain,
+          allowedOrigins: ['http://localhost:3000', additionalOrigin],
           stage: Stage.develop,
         },
         stateless: {},
@@ -86,8 +91,8 @@ export const getEnvironmentConfig = (stage: Stage): EnvironmentConfig => {
           },
           serviceName: `engagement-service-${stage}`,
           metricNamespace: `engagement-service-ns-${stage}`,
-          domain: 'localhost:3000',
-          domainProtocol: 'http',
+          domain,
+          allowedOrigins: [additionalOrigin],
           stage: stage,
         },
         stateless: {},
