@@ -3,6 +3,8 @@ interface Config {
 	appUrl: string;
 	domain: string;
 	hostedZoneId: string;
+	account: string;
+	region: string;
 }
 
 if (!process.env.STAGE) {
@@ -20,10 +22,15 @@ if (!process.env.DOMAIN) {
 if (!process.env.HOSTED_ZONE) {
 	throw Error('Environment Variable: HostedZone is missing');
 }
+if (!process.env.AWS_ACCOUNT || !process.env.AWS_REGION) {
+	throw Error('Environment Variable: AWS Account and Region are missing');
+}
 
 export const config: Config = {
 	stage: process.env.STAGE,
 	appUrl: process.env.APPURL,
 	domain: process.env.DOMAIN,
 	hostedZoneId: process.env.HOSTED_ZONE,
+	account: process.env.AWS_ACCOUNT,
+	region: process.env.AWS_REGION,
 };

@@ -9,7 +9,8 @@
     "watch": "tsc -w",
     "test": "jest",
     "cdk": "cdk",
-    "deploy-dev": "dotenv -e .env.development -- cdk deploy --all"
+    "deploy-dev": "dotenv -e .env.development -- cdk deploy --all",
+    "deploy-prod": "dotenv -e .env.production -- cdk deploy --all"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.145",

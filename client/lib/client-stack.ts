@@ -15,20 +15,22 @@ import {
 	PriceClass,
 } from 'aws-cdk-lib/aws-cloudfront';
 import { S3Origin } from 'aws-cdk-lib/aws-cloudfront-origins';
-import {
-	Certificate,
-	CertificateValidation,
-} from 'aws-cdk-lib/aws-certificatemanager';
-import { HostedZone } from 'aws-cdk-lib/aws-route53';
+
+import { ARecord, HostedZone, RecordTarget } from 'aws-cdk-lib/aws-route53';
+import { CloudFrontTarget } from 'aws-cdk-lib/aws-route53-targets';
+import { ICertificate } from 'aws-cdk-lib/aws-certificatemanager';
+
+interface ClientStackProps extends cdk.StackProps {
+	cloudfrontCertificate: ICertificate | null;
+}
 
 export class ClientStack extends cdk.Stack {
 	public readonly userPoolId: string;
 	public readonly clientId: string;
 	public readonly hostedDomain: string;
 
-	constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+	constructor(scope: Construct, id: string, props: ClientStackProps) {
 		super(scope, id, props);
-
 		/**
 		 * Create our basic user pool
 		 */
@@ -100,6 +102,18 @@ export class ClientStack extends cdk.Stack {
 				priceClass: PriceClass.PRICE_CLASS_100,
 			});
 		} else {
+			if (!props.cloudfrontCertificate) throw Error('Missing Stack Props');
+
+			const distribution = new Distribution(this, 'Distribution', {
+				domainNames: [`engagements.${config.domain}`],
+				defaultRootObject: 'index.html',
+				defaultBehavior: {
+					origin: new S3Origin(websiteBucket, { originAccessIdentity }),
+				},
+				priceClass: PriceClass.PRICE_CLASS_100,
+				certificate: props.cloudfrontCertificate,
+			});
+
 			// Retrieve the hosted zone
 			const hostedZone = HostedZone.fromHostedZoneAttributes(
 				this,
@@ -109,23 +123,12 @@ export class ClientStack extends cdk.Stack {
 					zoneName: config.domain,
 				}
 			);
-
-			/**
-			 * Create SSL certificate
-			 */
-			const cert = new Certificate(this, 'Certificate', {
-				domainName: `engagements.${config.domain}`,
-				validation: CertificateValidation.fromDns(hostedZone),
-			});
-
-			new Distribution(this, 'Distribution', {
-				domainNames: [config.domain],
-				defaultRootObject: 'index.html',
-				defaultBehavior: {
-					origin: new S3Origin(websiteBucket, { originAccessIdentity }),
-				},
-				priceClass: PriceClass.PRICE_CLASS_100,
-				certificate: cert,
+			// Create the DNS entry for our website and point to the ALB
+			new ARecord(this, 'ARecord', {
+				zone: hostedZone,
+				recordName: `engagements.${config.domain}`,
+				ttl: cdk.Duration.minutes(5),
+				target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)),
 			});
 		}
 	}

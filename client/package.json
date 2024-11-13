@@ -9,8 +9,8 @@
 		"watch": "tsc -w",
 		"test": "jest",
 		"cdk": "cdk",
-		"deploy-staging": "npm run build-spa-staging && dotenv -e .env.staging -- cdk deploy",
-		"deploy-prod": "npm run build-spa-prod && dotenv -e .env.production -- cdk deploy",
+		"deploy-staging": "npm run build-spa-staging && dotenv -e .env.staging -- cdk deploy --all",
+		"deploy-prod": "npm run build-spa-prod && dotenv -e .env.production -- cdk deploy --all",
 		"build-spa-staging": "cd vuetify-project && npm run build-staging",
 		"build-spa-prod": "cd vuetify-project && npm run build-prod"
 	},

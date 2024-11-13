@@ -92,9 +92,9 @@ export class EngagementServiceStatelessStack extends cdk.Stack {
       ...(props.appConfig.shared.stage !== Stage.develop
         ? {
             domainName: {
-              domainName: `engagements.api.${props.appConfig.shared.domain}`,
+              domainName: `engagements-api.${props.appConfig.shared.domain}`,
               certificate: new Certificate(this, 'Certificate', {
-                domainName: `engagements.api.${props.appConfig.shared.domain}`,
+                domainName: `engagements-api.${props.appConfig.shared.domain}`,
                 validation: CertificateValidation.fromDns(hostedZone),
               }),
             },
@@ -111,7 +111,7 @@ export class EngagementServiceStatelessStack extends cdk.Stack {
       // Create the DNS entry for our website and point to the ALB
       new ARecord(this, 'ARecord', {
         zone: hostedZone,
-        recordName: `engagements.api.${props.appConfig.shared.domain}`,
+        recordName: `engagements-api.${props.appConfig.shared.domain}`,
         ttl: cdk.Duration.minutes(5),
         target: RecordTarget.fromAlias(new ApiGateway(engagementApi)),
       });
