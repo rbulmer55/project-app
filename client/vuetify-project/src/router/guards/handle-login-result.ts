@@ -9,11 +9,14 @@ export async function handleLoginResult(to: any, from: any, next: any) {
     next("/login");
   }
   const code = to.query.code?.toString() || "";
+  try {
+    // call cognito to retieve users
+    const res = await getAccesstoken(code, userStore.pkceVerifier);
 
-  // call cognito to retieve users
-  const res = await getAccesstoken(code, userStore.pkceVerifier);
-
-  userStore.setCognitoInfo(res.data);
-
-  next("/");
+    userStore.setCognitoInfo(res.data);
+  } catch (e) {
+    console.error("Failed to retrieve tokens:", e);
+  } finally {
+    next("/");
+  }
 }

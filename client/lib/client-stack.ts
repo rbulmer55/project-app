@@ -13,12 +13,13 @@ import {
 	Distribution,
 	OriginAccessIdentity,
 	PriceClass,
+	ViewerProtocolPolicy,
 } from 'aws-cdk-lib/aws-cloudfront';
 import { S3Origin } from 'aws-cdk-lib/aws-cloudfront-origins';
 
 import { ARecord, HostedZone, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { CloudFrontTarget } from 'aws-cdk-lib/aws-route53-targets';
-import { ICertificate } from 'aws-cdk-lib/aws-certificatemanager';
+import { Certificate, ICertificate } from 'aws-cdk-lib/aws-certificatemanager';
 
 interface ClientStackProps extends cdk.StackProps {
 	cloudfrontCertificate: ICertificate | null;
@@ -75,6 +76,46 @@ export class ClientStack extends cdk.Stack {
 		 */
 		const websiteBucket = new Bucket(this, 'WebsiteBucket', {
 			accessControl: BucketAccessControl.PRIVATE,
+			// websiteIndexDocument: 'index.html',
+			// websiteErrorDocument: 'index.html',
+		});
+
+		/**
+		 * Create a cloudfront distrubtion
+		 */
+		const originAccessIdentity = new OriginAccessIdentity(
+			this,
+			'OriginAccessIdentity'
+		);
+		websiteBucket.grantRead(originAccessIdentity);
+
+		const distribution = new Distribution(this, 'Distribution', {
+			defaultRootObject: 'index.html',
+			defaultBehavior: {
+				origin: new S3Origin(websiteBucket, { originAccessIdentity }),
+				viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+			},
+			priceClass: PriceClass.PRICE_CLASS_100,
+			errorResponses: [
+				{
+					httpStatus: 403,
+					responseHttpStatus: 200,
+					responsePagePath: '/index.html',
+					ttl: cdk.Duration.minutes(5),
+				},
+				{
+					httpStatus: 404,
+					responseHttpStatus: 200,
+					responsePagePath: '/index.html',
+					ttl: cdk.Duration.minutes(5),
+				},
+			],
+			...(config.stage === 'prod'
+				? {
+						domainNames: [`engagements.${config.domain}`],
+						certificate: props.cloudfrontCertificate as Certificate,
+					}
+				: {}),
 		});
 		/**
 		 * Deploy VUE SPA to the bucket
@@ -82,38 +123,11 @@ export class ClientStack extends cdk.Stack {
 		new BucketDeployment(this, 'BucketDeployment', {
 			destinationBucket: websiteBucket,
 			sources: [Source.asset(resolve(__dirname, '../vuetify-project/dist'))],
+			distribution,
+			distributionPaths: ['/*'],
 		});
-		/**
-		 * Create a cloudfront distrubtion
-		 */
-		const originAccessIdentity = new OriginAccessIdentity(
-			this,
-			'OriginAccessIdentity',
-			{}
-		);
-		websiteBucket.grantRead(originAccessIdentity);
 
-		if (config.stage !== 'prod') {
-			new Distribution(this, 'Distribution', {
-				defaultRootObject: 'index.html',
-				defaultBehavior: {
-					origin: new S3Origin(websiteBucket, { originAccessIdentity }),
-				},
-				priceClass: PriceClass.PRICE_CLASS_100,
-			});
-		} else {
-			if (!props.cloudfrontCertificate) throw Error('Missing Stack Props');
-
-			const distribution = new Distribution(this, 'Distribution', {
-				domainNames: [`engagements.${config.domain}`],
-				defaultRootObject: 'index.html',
-				defaultBehavior: {
-					origin: new S3Origin(websiteBucket, { originAccessIdentity }),
-				},
-				priceClass: PriceClass.PRICE_CLASS_100,
-				certificate: props.cloudfrontCertificate,
-			});
-
+		if (config.stage === 'prod') {
 			// Retrieve the hosted zone
 			const hostedZone = HostedZone.fromHostedZoneAttributes(
 				this,

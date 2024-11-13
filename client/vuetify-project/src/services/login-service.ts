@@ -24,20 +24,17 @@ export function getLogoutUrl() {
 }
 
 export async function getAccesstoken(code: string, pkceVerifier: string) {
-  const resp = await axios.post(
-    `${appDomain}/oauth2/token`,
-    {
-      grant_type: "authorization_code",
-      client_id: clientId,
-      code: code,
-      code_verifier: pkceVerifier,
-      redirect_uri: redirect,
+  const params = new URLSearchParams();
+  params.append("grant_type", "authorization_code");
+  params.append("client_id", clientId);
+  params.append("code", code);
+  params.append("code_verifier", pkceVerifier);
+  params.append("redirect_uri", redirect);
+
+  const resp = await axios.post(`${appDomain}/oauth2/token`, params, {
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
     },
-    {
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-    },
-  );
+  });
   return resp;
 }

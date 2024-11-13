@@ -69,6 +69,11 @@ const router = createRouter({
           beforeEnter: logout,
           component: () => import("../pages/index.vue"),
         },
+        {
+          path: "/:catchAll(.*)",
+          name: "NotFound",
+          component: () => import("../pages/index.vue"),
+        },
       ],
     },
   ],
