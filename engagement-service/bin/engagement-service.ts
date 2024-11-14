@@ -17,6 +17,7 @@ const stateful = new EngagementServiceStatefulStack(
   app,
   `${appConfig.shared.stage}-EngagementServiceStatefulStack`,
   {
+    appConfig,
     env: {
       account: appConfig.env.account,
       region: appConfig.env.region,

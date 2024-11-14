@@ -5,6 +5,7 @@ import {
   GetItemCommand,
   PutItemCommand,
   QueryCommand,
+  QueryCommandInput,
   QueryCommandOutput,
   ReturnValue,
   ScanCommand,
@@ -29,7 +30,7 @@ interface KeySchema {
 // const user: User = await getById<User>({ pk: userId, sk: optionalSortKey }, "users");
 export async function getById<T>(
   keys: KeySchema,
-  tableName: string
+  tableName: string,
 ): Promise<T> {
   const keyParams: { [key: string]: any } = {
     pk: { S: keys.pk },
@@ -49,14 +50,14 @@ export async function getById<T>(
 
     if (!data.Item) {
       throw new ResourceNotFoundError(
-        `Item with keys PK: ${keys.pk}, SK: ${keys.sk} not found`
+        `Item with keys PK: ${keys.pk}, SK: ${keys.sk} not found`,
       );
     }
 
     const item = unmarshall(data.Item) as T;
 
     console.log(
-      `Item with PK: ${keys.pk}, SK: ${keys.sk} retrieved successfully`
+      `Item with PK: ${keys.pk}, SK: ${keys.sk} retrieved successfully`,
     );
 
     return item;
@@ -70,7 +71,7 @@ export async function getById<T>(
 export async function upsert<T>(
   newItem: T,
   tableName: string,
-  id: string
+  id: string,
 ): Promise<T> {
   const params = {
     TableName: tableName,
@@ -93,7 +94,7 @@ export async function upsert<T>(
 // await deleteById({ pk: userIdToDelete, sk: optionalSortKey }, "users");
 export async function deleteById(
   keys: KeySchema,
-  tableName: string
+  tableName: string,
 ): Promise<void> {
   const keyParams: { [key: string]: any } = {
     pk: { S: keys.pk },
@@ -112,7 +113,7 @@ export async function deleteById(
     await dynamoDb.send(new DeleteItemCommand(params));
 
     console.log(
-      `Item with PK: ${keys.pk}, SK: ${keys.sk} deleted successfully`
+      `Item with PK: ${keys.pk}, SK: ${keys.sk} deleted successfully`,
     );
   } catch (error) {
     console.error('Error deleting item:', error);
@@ -132,7 +133,7 @@ export async function deleteById(
 export async function updateById<T>(
   keys: KeySchema,
   tableName: string,
-  updatedItem: Partial<T>
+  updatedItem: Partial<T>,
 ): Promise<T> {
   const keyParams: { [key: string]: any } = {
     pk: { S: keys.pk },
@@ -150,7 +151,7 @@ export async function updateById<T>(
 
   const expressionAttributeNames = Object.keys(updatedItem).reduce(
     (acc, key) => ({ ...acc, [`#${key}`]: key }),
-    {}
+    {},
   );
 
   const expressionAttributeValues = marshall(
@@ -159,8 +160,8 @@ export async function updateById<T>(
         ...acc,
         [`:${key}`]: (updatedItem as Record<string, any>)[key],
       }),
-      {}
-    )
+      {},
+    ),
   );
 
   const params = {
@@ -177,14 +178,14 @@ export async function updateById<T>(
 
     if (!data.Attributes) {
       throw new ResourceNotFoundError(
-        `Item with keys PK: ${keys.pk}, SK: ${keys.sk} not found`
+        `Item with keys PK: ${keys.pk}, SK: ${keys.sk} not found`,
       );
     }
 
     const updatedData = unmarshall(data.Attributes) as T;
 
     console.log(
-      `Item with PK: ${keys.pk}, SK: ${keys.sk} updated successfully`
+      `Item with PK: ${keys.pk}, SK: ${keys.sk} updated successfully`,
     );
 
     return updatedData;
@@ -203,7 +204,7 @@ export async function updateById<T>(
 export async function list<T>(
   tableName: string,
   pageSize: number,
-  lastEvaluatedKey?: KeySchema
+  lastEvaluatedKey?: KeySchema,
 ): Promise<{ items: T[]; lastEvaluatedKey?: KeySchema }> {
   const exclusiveStartKey: Record<string, any> | undefined = lastEvaluatedKey
     ? marshall({
@@ -220,7 +221,7 @@ export async function list<T>(
 
   try {
     const data: QueryCommandOutput = await dynamoDb.send(
-      new QueryCommand(params)
+      new QueryCommand(params),
     );
 
     const items: T[] = data.Items
@@ -259,7 +260,7 @@ export async function getAll<T>(tableName: string): Promise<T[]> {
 
     try {
       const data: ScanCommandOutput = await dynamoDb.send(
-        new ScanCommand(params)
+        new ScanCommand(params),
       );
 
       const items: T[] = data.Items
@@ -296,7 +297,7 @@ export async function transaction<T>(
     action: 'put' | 'delete';
     item?: T;
     key: KeySchema;
-  }>
+  }>,
 ): Promise<void> {
   const transactItems = actions.map((actionItem) => {
     const keyParams: Record<string, any> = {
@@ -337,7 +338,7 @@ export async function transaction<T>(
 export async function batch<T extends KeySchema>(
   tableName: string,
   items: T[],
-  batchSize: number
+  batchSize: number,
 ): Promise<void> {
   const batches = [];
 
@@ -363,5 +364,45 @@ export async function batch<T extends KeySchema>(
       console.error('error executing batch:', error);
       throw error;
     }
+  }
+}
+
+export async function queryGSI1<T>(
+  tableName: string,
+  attr1: string,
+  attr2?: string,
+): Promise<{ items: T[] }> {
+  const params: QueryCommandInput = {
+    TableName: tableName,
+    IndexName: 'gsi1',
+    KeyConditionExpression: '#attr1 = :attr1Val',
+    ExpressionAttributeNames: {
+      '#attr1': 'attr1',
+      ...(attr2 ? { '#attr2': 'attr2' } : {}),
+    },
+    ExpressionAttributeValues: {
+      ':attr1Val': {
+        S: `${attr1}`,
+      },
+      ...(attr2 ? { ':attr2Val': { S: `${attr2}` } } : {}),
+    },
+    ScanIndexForward: false,
+  };
+
+  try {
+    const data: QueryCommandOutput = await dynamoDb.send(
+      new QueryCommand(params),
+    );
+
+    const items: T[] = data.Items
+      ? data.Items.map((item) => unmarshall(item) as T)
+      : [];
+
+    console.log(`retrieved ${items.length} items from ${tableName}`);
+
+    return { items };
+  } catch (error) {
+    console.error('error listing items:', error);
+    throw error;
   }
 }

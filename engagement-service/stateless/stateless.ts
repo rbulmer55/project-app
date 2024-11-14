@@ -10,7 +10,12 @@ import {
   RestApi,
 } from 'aws-cdk-lib/aws-apigateway';
 import { ITableV2 } from 'aws-cdk-lib/aws-dynamodb';
-import { Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import {
+  Effect,
+  PolicyStatement,
+  Role,
+  ServicePrincipal,
+} from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import {
   corsResponseParamters,
@@ -31,6 +36,7 @@ import { NodejsFunction, SourceMapMode } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { join } from 'path';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 
 interface EngagementStackProps extends cdk.StackProps {
   engagementTable: ITableV2;
@@ -56,13 +62,28 @@ export class EngagementServiceStatelessStack extends cdk.Stack {
           './src/adapters/primary/sqs-queue-engagements-queue-processor/sqs-queue-engagements-queue-processor.adapter.ts',
         ),
         handler: 'handler',
+        memorySize: 512,
+        environment: {
+          TABLE_NAME: props.engagementTable.tableName,
+        },
         bundling: {
           minify: true,
           sourceMap: true,
           sourceMapMode: SourceMapMode.INLINE,
         },
         logRetention: RetentionDays.SIX_MONTHS,
+        initialPolicy: [
+          new PolicyStatement({
+            effect: Effect.ALLOW,
+            actions: ['bedrock:*'],
+            resources: [`*`],
+          }),
+        ],
       },
+    );
+    props.engagementTable.grantReadWriteData(engagementStreamLambda);
+    engagementStreamLambda.addEventSource(
+      new SqsEventSource(props.engagementQueue, { batchSize: 1 }),
     );
 
     /**

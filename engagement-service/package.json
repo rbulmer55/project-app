@@ -31,6 +31,8 @@
     "@aws-lambda-powertools/logger": "^2.10.0",
     "@aws-lambda-powertools/metrics": "^2.10.0",
     "@aws-lambda-powertools/tracer": "^2.10.0",
+    "@aws-sdk/client-bedrock": "^3.691.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.691.0",
     "@aws-sdk/client-dynamodb": "^3.687.0",
     "@aws-sdk/client-eventbridge": "^3.687.0",
     "@aws-sdk/client-scheduler": "^3.687.0",
@@ -50,6 +52,7 @@
     "dotenv-cli": "^7.4.2",
     "http-errors": "^2.0.0",
     "jsonwebtoken": "^9.0.2",
+    "redact-pii": "^3.4.0",
     "source-map-support": "^0.5.21",
     "uuid": "^11.0.2"
   }

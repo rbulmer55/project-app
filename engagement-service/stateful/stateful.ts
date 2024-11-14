@@ -1,3 +1,4 @@
+import { EnvironmentConfig } from 'app-config';
 import * as cdk from 'aws-cdk-lib';
 import {
   AttributeType,
@@ -5,20 +6,20 @@ import {
   StreamViewType,
   TableV2,
 } from 'aws-cdk-lib/aws-dynamodb';
-import {
-  Effect,
-  PolicyStatement,
-  Role,
-  ServicePrincipal,
-} from 'aws-cdk-lib/aws-iam';
+import { Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import { LogGroup } from 'aws-cdk-lib/aws-logs';
 import { CfnPipe } from 'aws-cdk-lib/aws-pipes';
 import { IQueue, Queue } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
 
+interface EngagementStatefulProps extends cdk.StackProps {
+  appConfig: EnvironmentConfig;
+}
+
 export class EngagementServiceStatefulStack extends cdk.Stack {
   public readonly engagementTable: ITableV2;
   public readonly engagementQueue: IQueue;
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: EngagementStatefulProps) {
     super(scope, id, props);
 
     const engagementTable = new TableV2(this, 'EngagementTable', {
@@ -45,6 +46,7 @@ export class EngagementServiceStatefulStack extends cdk.Stack {
     });
     const engagementQueue = new Queue(this, 'EngagementsQueue', {
       fifo: true,
+      contentBasedDeduplication: true,
       deadLetterQueue: { queue: engagementDlq, maxReceiveCount: 3 },
     });
     this.engagementQueue = engagementQueue;
@@ -54,42 +56,46 @@ export class EngagementServiceStatefulStack extends cdk.Stack {
         'Role assumed by the Pipes to transfer data from DynamoDB streams to SQS',
       assumedBy: new ServicePrincipal('pipes.amazonaws.com'),
     });
+    engagementQueue.grantSendMessages(role);
+    engagementTable.grantStreamRead(role);
 
-    role.addToPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: ['sqs:SendMessage'],
-        resources: [engagementQueue.queueArn],
-      }),
-    );
-
-    role.addToPolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: [
-          'dynamodb:DescribeStream',
-          'dynamodb:GetRecords',
-          'dynamodb:GetShardIterator',
-          'dynamodb:ListStreams',
-        ],
-        resources: [engagementTable.tableStreamArn!],
-      }),
-    );
+    const logGroup = new LogGroup(this, 'EventBridgePipeLogGroup', {
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // Optional: delete log group on stack deletion
+    });
 
     new CfnPipe(this, 'DynamoDbToSqsPipe', {
       roleArn: role.roleArn,
       source: engagementTable.tableStreamArn!,
       sourceParameters: {
         dynamoDbStreamParameters: {
-          startingPosition: 'LATEST', // Start from the latest records
-          batchSize: 1, // Process items individually
+          startingPosition: 'LATEST',
+          batchSize: 1,
+        },
+        filterCriteria: {
+          filters: [
+            {
+              pattern: JSON.stringify({
+                dynamodb: {
+                  NewImage: {
+                    pk: { S: [{ prefix: 'Engagement' }] }, //Filter for where our pk contains Engagement#
+                  },
+                },
+              }),
+            },
+          ],
         },
       },
       target: engagementQueue.queueArn,
       targetParameters: {
         sqsQueueParameters: {
-          messageGroupId: 'default', // Required for FIFO queues
+          messageGroupId: `$.dynamodb.Keys.pk.S`, // Use PK as MessageGroupId
+          messageDeduplicationId: `$.eventID`, // Use eventID for deduplication
         },
+      },
+      logConfiguration: {
+        level: 'INFO',
+        includeExecutionData: ['ALL'],
+        cloudwatchLogsLogDestination: { logGroupArn: logGroup.logGroupArn },
       },
     });
   }

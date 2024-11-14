@@ -11,7 +11,7 @@ export interface Summary {
   clientId: string;
   projectId: string;
   summary: string;
-  lastUpdated: string;
+  updatedAt: string;
 }
 
 export interface SummaryDataView {
@@ -19,7 +19,7 @@ export interface SummaryDataView {
   client: string;
   project: string;
   summary: string;
-  lastUpdated: string;
+  updatedAt: string;
 }
 
 export async function getSummaries(

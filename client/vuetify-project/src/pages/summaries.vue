@@ -120,6 +120,7 @@ export default {
   }),
   methods: {
     formatSummaries(summaries: Summary[]) {
+      console.log(summaries);
       this.summaries = summaries.map(
         ({ id = "", clientId, projectId, ...summary }) => {
           const clientName =
@@ -175,6 +176,7 @@ export default {
           this.client.id || "",
           this.project.id || "",
         );
+        console.log(summaries);
         this.formatSummaries(summaries);
       } catch (e: any) {
         const error = JSON.parse(e.message);
