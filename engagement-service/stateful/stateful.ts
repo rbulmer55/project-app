@@ -29,10 +29,6 @@ export class EngagementServiceStatefulStack extends cdk.Stack {
         {
           indexName: 'gsi1',
           partitionKey: { name: 'attr1', type: AttributeType.STRING },
-        },
-        {
-          indexName: 'gsi2',
-          partitionKey: { name: 'attr1', type: AttributeType.STRING },
           sortKey: { name: 'attr2', type: AttributeType.STRING },
         },
       ],

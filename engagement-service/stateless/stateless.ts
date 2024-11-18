@@ -355,7 +355,7 @@ export class EngagementServiceStatelessStack extends cdk.Stack {
           requestTemplates: {
             'application/json': JSON.stringify({
               TableName: `${props.engagementTable.tableName}`,
-              IndexName: 'gsi2',
+              IndexName: 'gsi1',
               KeyConditionExpression: '#attr1 = :attr1Val',
               ExpressionAttributeNames: {
                 '#attr1': 'attr1',
@@ -493,7 +493,7 @@ export class EngagementServiceStatelessStack extends cdk.Stack {
           requestTemplates: {
             'application/json': JSON.stringify({
               TableName: `${props.engagementTable.tableName}`,
-              IndexName: 'gsi2',
+              IndexName: 'gsi1',
               KeyConditionExpression: '#attr1 = :attr1Val ',
               ExpressionAttributeNames: {
                 '#attr1': 'attr1',
@@ -644,7 +644,7 @@ export class EngagementServiceStatelessStack extends cdk.Stack {
           requestTemplates: {
             'application/json': JSON.stringify({
               TableName: `${props.engagementTable.tableName}`,
-              IndexName: 'gsi2',
+              IndexName: 'gsi1',
               KeyConditionExpression: '#attr1 = :attr1Val',
               ExpressionAttributeNames: {
                 '#attr1': 'attr1',

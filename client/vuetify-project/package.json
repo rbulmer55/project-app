@@ -13,6 +13,7 @@
 		"@aws-sdk/client-cognito-identity-provider": "^3.682.0",
 		"@date-io/date-fns": "^3.0.0",
 		"@mdi/font": "7.4.47",
+		"axios": "^1.7.7",
 		"core-js": "^3.37.1",
 		"date-fns": "3.6",
 		"jwt-decode": "^4.0.0",
